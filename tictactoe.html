@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic-Tac-Toe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f1117;
+      --surface:    #1a1d27;
+      --border:     #2e3248;
+      --accent-x:   #e05c5c;
+      --accent-o:   #5c9ee0;
+      --win-glow-x: #e05c5c66;
+      --win-glow-o: #5c9ee066;
+      --text:       #cdd6f4;
+      --text-dim:   #585b70;
+      --radius:     12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text);
+      opacity: 0.85;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px;
+    }
+
+    .radio-group label {
+      cursor: pointer;
+      padding: 6px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+
+    .radio-group input[type="radio"] { display: none; }
+
+    .radio-group input[type="radio"]:checked + label {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    #difficulty-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      transition: opacity 0.2s;
+    }
+
+    #difficulty-row.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Scoreboard ── */
+    .scoreboard {
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 0.85rem;
+      min-width: 260px;
+    }
+
+    .score-cell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 8px;
+      gap: 4px;
+      border-right: 1px solid var(--border);
+    }
+
+    .score-cell:last-child { border-right: none; }
+
+    .score-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .score-label.x { color: var(--accent-x); }
+    .score-label.o { color: var(--accent-o); }
+
+    .score-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    /* ── Status bar ── */
+    #status {
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      min-height: 1.4em;
+      text-align: center;
+      color: var(--text);
+      transition: color 0.2s;
+    }
+
+    #status.x { color: var(--accent-x); }
+    #status.o { color: var(--accent-o); }
+
+    /* ── Board ── */
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
+    }
+
+    .cell {
+      width: 96px;
+      height: 96px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 2.4rem;
+      font-weight: 900;
+      cursor: pointer;
+      color: transparent;
+      transition: background 0.12s, border-color 0.12s, transform 0.08s, box-shadow 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell:hover:not(:disabled) {
+      background: var(--border);
+      transform: scale(1.04);
+    }
+
+    .cell:active:not(:disabled) { transform: scale(0.97); }
+
+    .cell.x {
+      color: var(--accent-x);
+      border-color: #3a2424;
+      background: #1e1212;
+      cursor: default;
+    }
+
+    .cell.o {
+      color: var(--accent-o);
+      border-color: #1e2e3a;
+      background: #101820;
+      cursor: default;
+    }
+
+    .cell.winning {
+      animation: pulse 0.6s ease forwards;
+    }
+
+    .cell.winning.x { box-shadow: 0 0 18px var(--win-glow-x); border-color: var(--accent-x); }
+    .cell.winning.o { box-shadow: 0 0 18px var(--win-glow-o); border-color: var(--accent-o); }
+
+    @keyframes pulse {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.10); }
+      70%  { transform: scale(0.96); }
+      100% { transform: scale(1); }
+    }
+
+    .cell:disabled { cursor: default; }
+
+    /* ── Restart button ── */
+    #restart-btn {
+      padding: 10px 32px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--border);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.08s;
+    }
+
+    #restart-btn:hover  { background: #3e4260; }
+    #restart-btn:active { transform: scale(0.96); }
+
+    @media (max-width: 400px) {
+      .cell { width: 80px; height: 80px; font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Tic-Tac-Toe</h1>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="radio-group" id="mode-group">
+      <input type="radio" name="mode" id="hvh" value="hvh" />
+      <label for="hvh">Human vs Human</label>
+      <input type="radio" name="mode" id="hvai" value="hvai" checked />
+      <label for="hvai">Human vs AI</label>
+    </div>
+
+    <div id="difficulty-row">
+      <span>Difficulty:</span>
+      <div class="radio-group" id="diff-group">
+        <input type="radio" name="diff" id="easy" value="easy" />
+        <label for="easy">Easy</label>
+        <input type="radio" name="diff" id="hard" value="hard" checked />
+        <label for="hard">Hard</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scoreboard -->
+  <div class="scoreboard">
+    <div class="score-cell">
+      <span class="score-label x">X</span>
+      <span class="score-value" id="score-x">0</span>
+    </div>
+    <div class="score-cell">
+      <span class="score-label">Draws</span>
+      <span class="score-value" id="score-d">0</span>
+    </div>
+    <div class="score-cell">
+      <span class="score-label o">O</span>
+      <span class="score-value" id="score-o">0</span>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div id="status"></div>
+
+  <!-- Board -->
+  <div id="board" role="grid" aria-label="Tic-Tac-Toe board"></div>
+
+  <!-- Restart -->
+  <button id="restart-btn">New Game</button>
+
+<script>
+  // ─────────────────────────────────────────────
+  // State
+  // ─────────────────────────────────────────────
+  const WIN_LINES = [
+    [0,1,2],[3,4,5],[6,7,8], // rows
+    [0,3,6],[1,4,7],[2,5,8], // cols
+    [0,4,8],[2,4,6]          // diagonals
+  ];
+
+  let board        = Array(9).fill('');
+  let currentPlayer = 'X';
+  let gameOver     = false;
+  let mode         = 'hvai';
+  let difficulty   = 'hard';
+  let scores       = { X: 0, O: 0, draws: 0 };
+  let aiThinking   = false;
+
+  // ─────────────────────────────────────────────
+  // DOM refs
+  // ─────────────────────────────────────────────
+  const boardEl    = document.getElementById('board');
+  const statusEl   = document.getElementById('status');
+  const scoreXEl   = document.getElementById('score-x');
+  const scoreOEl   = document.getElementById('score-o');
+  const scoreDEl   = document.getElementById('score-d');
+  const restartBtn = document.getElementById('restart-btn');
+  const diffRow    = document.getElementById('difficulty-row');
+
+  // ─────────────────────────────────────────────
+  // Core logic (pure)
+  // ─────────────────────────────────────────────
+  function checkWinner(b) {
+    for (const line of WIN_LINES) {
+      const [a, c, d] = line;
+      if (b[a] && b[a] === b[c] && b[a] === b[d])
+        return { winner: b[a], line };
+    }
+    return null;
+  }
+
+  function isDraw(b) {
+    return b.every(c => c !== '') && !checkWinner(b);
+  }
+
+  function getEmptyCells(b) {
+    return b.reduce((acc, v, i) => (v === '' ? [...acc, i] : acc), []);
+  }
+
+  // ─────────────────────────────────────────────
+  // AI
+  // ─────────────────────────────────────────────
+  function easyMove(b) {
+    const empties = getEmptyCells(b);
+    return empties[Math.floor(Math.random() * empties.length)];
+  }
+
+  function minimax(b, depth, isMaximizing, alpha, beta) {
+    const result = checkWinner(b);
+    if (result) return result.winner === 'O' ?  10 - depth : depth - 10;
+    if (isDraw(b)) return 0;
+
+    if (isMaximizing) {
+      let best = -Infinity;
+      for (const i of getEmptyCells(b)) {
+        b[i] = 'O';
+        best = Math.max(best, minimax(b, depth + 1, false, alpha, beta));
+        b[i] = '';
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (const i of getEmptyCells(b)) {
+        b[i] = 'X';
+        best = Math.min(best, minimax(b, depth + 1, true, alpha, beta));
+        b[i] = '';
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;
+      }
+      return best;
+    }
+  }
+
+  function hardMove(b) {
+    let bestScore = -Infinity, bestIdx = -1;
+    for (const i of getEmptyCells(b)) {
+      b[i] = 'O';
+      const score = minimax(b, 0, false, -Infinity, Infinity);
+      b[i] = '';
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+
+  // ─────────────────────────────────────────────
+  // Rendering
+  // ─────────────────────────────────────────────
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    board.forEach((val, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'cell' + (val ? ' ' + val.toLowerCase() : '');
+      btn.textContent = val;
+      btn.disabled = val !== '' || gameOver || aiThinking;
+      btn.setAttribute('aria-label', `Cell ${i + 1}${val ? ', ' + val : ''}`);
+      btn.addEventListener('click', () => handleCellClick(i));
+      boardEl.appendChild(btn);
+    });
+  }
+
+  function highlightWin(line, winner) {
+    const cells = boardEl.querySelectorAll('.cell');
+    line.forEach(i => cells[i].classList.add('winning', winner.toLowerCase()));
+  }
+
+  function setStatus(text, cls = '') {
+    statusEl.textContent = text;
+    statusEl.className = cls;
+  }
+
+  function updateScoreboard() {
+    scoreXEl.textContent = scores.X;
+    scoreOEl.textContent = scores.O;
+    scoreDEl.textContent = scores.draws;
+  }
+
+  // ─────────────────────────────────────────────
+  // Game flow
+  // ─────────────────────────────────────────────
+  function applyMove(idx) {
+    board[idx] = currentPlayer;
+
+    const result = checkWinner(board);
+    if (result) {
+      scores[result.winner]++;
+      gameOver = true;
+      buildBoard();
+      highlightWin(result.line, result.winner);
+      updateScoreboard();
+      const label = mode === 'hvai' && result.winner === 'O' ? 'AI wins!' :
+                    mode === 'hvai' && result.winner === 'X' ? 'You win!' :
+                    `Player ${result.winner} wins!`;
+      setStatus(label, result.winner.toLowerCase());
+      return;
+    }
+
+    if (isDraw(board)) {
+      scores.draws++;
+      gameOver = true;
+      buildBoard();
+      updateScoreboard();
+      setStatus("It's a draw!");
+      return;
+    }
+
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    buildBoard();
+    updateTurnStatus();
+
+    if (mode === 'hvai' && currentPlayer === 'O' && !gameOver) {
+      scheduleAI();
+    }
+  }
+
+  function updateTurnStatus() {
+    if (mode === 'hvh') {
+      setStatus(`Player ${currentPlayer}'s turn`, currentPlayer.toLowerCase());
+    } else {
+      setStatus(currentPlayer === 'X' ? 'Your turn' : 'AI thinking…', currentPlayer.toLowerCase());
+    }
+  }
+
+  function scheduleAI() {
+    aiThinking = true;
+    buildBoard(); // disable cells while AI thinks
+    setTimeout(() => {
+      const idx = difficulty === 'easy' ? easyMove(board) : hardMove(board);
+      aiThinking = false;
+      applyMove(idx);
+    }, 200);
+  }
+
+  function handleCellClick(idx) {
+    if (gameOver || aiThinking || board[idx] !== '') return;
+    applyMove(idx);
+  }
+
+  function startGame() {
+    board         = Array(9).fill('');
+    currentPlayer = 'X';
+    gameOver      = false;
+    aiThinking    = false;
+    buildBoard();
+    updateTurnStatus();
+  }
+
+  // ─────────────────────────────────────────────
+  // Controls wiring
+  // ─────────────────────────────────────────────
+  document.querySelectorAll('input[name="mode"]').forEach(radio => {
+    radio.addEventListener('change', e => {
+      mode = e.target.value;
+      diffRow.classList.toggle('hidden', mode === 'hvh');
+      startGame();
+    });
+  });
+
+  document.querySelectorAll('input[name="diff"]').forEach(radio => {
+    radio.addEventListener('change', e => {
+      difficulty = e.target.value;
+      startGame();
+    });
+  });
+
+  restartBtn.addEventListener('click', startGame);
+
+  // ─────────────────────────────────────────────
+  // Keyboard: number keys 1-9 map to cells
+  // ─────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= 9) handleCellClick(n - 1);
+    if (e.key === 'r' || e.key === 'R') startGame();
+  });
+
+  // ─────────────────────────────────────────────
+  // Init
+  // ─────────────────────────────────────────────
+  // Reflect default checked state
+  mode       = document.querySelector('input[name="mode"]:checked').value;
+  difficulty = document.querySelector('input[name="diff"]:checked').value;
+  diffRow.classList.toggle('hidden', mode === 'hvh');
+  startGame();
+</script>
+</body>
+</html>
